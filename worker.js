@@ -102,12 +102,9 @@ async function getRealRid(rid) {
   return rid;
 }
 
-// MD5 加密函数 (利用 Cloudflare Workers 内置的 Web Crypto API)
+// MD5 加密函数 (适配 Bun 容器环境)
 async function md5(string) {
-  const buffer = new TextEncoder().encode(string);
-  const hashBuffer = await crypto.subtle.digest('MD5', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return new Bun.CryptoHasher("md5").update(string).digest("hex");
 }
 
 // 生成动态签名
