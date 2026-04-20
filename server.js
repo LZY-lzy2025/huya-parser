@@ -1,8 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import { webcrypto } from 'node:crypto';
+import crypto from 'node:crypto';
 
-const crypto = webcrypto;
 const app = express();
 
 // 开启全局 CORS 跨域支持
@@ -17,6 +16,7 @@ const fetchHeaders = {
   'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
 };
 
+// 获取真实房间号
 async function getRealRid(rid) {
   const res = await fetch(`https://www.huya.com/${rid}`, { headers: fetchHeaders });
   const html = await res.text();
@@ -34,13 +34,12 @@ async function getRealRid(rid) {
   return rid;
 }
 
+// MD5 加密函数 (使用 Node.js 原生 crypto 模块)
 async function md5(string) {
-  const buffer = new TextEncoder().encode(string);
-  const hashBuffer = await crypto.subtle.digest('MD5', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return crypto.createHash('md5').update(string).digest('hex');
 }
 
+// 生成动态签名
 async function generateDynamicAntiCode(anticode, uid, streamName) {
   const params = new URLSearchParams(anticode);
   const seqid = Date.now().toString();
@@ -78,6 +77,7 @@ async function generateDynamicAntiCode(anticode, uid, streamName) {
   return newParams.toString();
 }
 
+// 获取直播流数据
 async function getStream(rid) {
   const url = `https://mp.huya.com/cache.php?m=Live&do=profileRoom&roomid=${rid}`;
   const res = await fetch(url, { headers: fetchHeaders });
@@ -118,6 +118,7 @@ async function getStream(rid) {
   return Object.keys(result).length > 0 ? result : false;
 }
 
+// CDN 优选函数
 function pickCDN(map, priority) {
   for (const p of priority) {
     if (map[p]) return map[p];
