@@ -1,5 +1,5 @@
 /**
- * 虎牙直播流解析 - Cloudflare Workers 节点版
+ * 虎牙直播流解析 - Cloudflare Workers / Bun 容器节点版
  * 功能：自动解析真实房间号，生成动态防盗链签名，优选CDN节点
  */
 
@@ -102,7 +102,7 @@ async function getRealRid(rid) {
   return rid;
 }
 
-// MD5 加密函数 (适配 Bun 容器环境)
+// MD5 加密函数 (已替换为 Bun 原生高效率支持)
 async function md5(string) {
   return new Bun.CryptoHasher("md5").update(string).digest("hex");
 }
@@ -184,7 +184,9 @@ async function getStream(rid) {
     const dynamicAntiCode = await generateDynamicAntiCode(anticode, uid.toString(), streamName);
     
     let streamUrl = `${s.sFlvUrl}/${streamName}.${flvSuffix}?${dynamicAntiCode}`;
-    streamUrl = streamUrl.replace("http://", "https://");
+    
+    // ⚠️ 已注释：不再强制转换 HTTPS，允许原生 HTTP 边缘节点访问
+    // streamUrl = streamUrl.replace("http://", "https://");
     
     const cdnName = cdnMap[cdn] || cdn;
     result[cdnName] = streamUrl;
