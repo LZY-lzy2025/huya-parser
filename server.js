@@ -9,16 +9,22 @@ app.use(cors());
 
 // ================= 工具函数 =================
 
-const fetchHeaders = {
+// 生成随机国内 IP
+const getRandomIP = () => `116.228.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+
+// 动态获取请求头（每次请求都生成新的伪装 IP）
+const getFetchHeaders = () => ({
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Referer': 'https://www.huya.com/',
   'Origin': 'https://www.huya.com',
-  'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-};
+  'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+  'X-Forwarded-For': getRandomIP(),
+  'Client-IP': getRandomIP()
+});
 
 // 获取真实房间号
 async function getRealRid(rid) {
-  const res = await fetch(`https://www.huya.com/${rid}`, { headers: fetchHeaders });
+  const res = await fetch(`https://www.huya.com/${rid}`, { headers: getFetchHeaders() });
   const html = await res.text();
   
   const patterns = [
@@ -80,7 +86,7 @@ async function generateDynamicAntiCode(anticode, uid, streamName) {
 // 获取直播流数据
 async function getStream(rid) {
   const url = `https://mp.huya.com/cache.php?m=Live&do=profileRoom&roomid=${rid}`;
-  const res = await fetch(url, { headers: fetchHeaders });
+  const res = await fetch(url, { headers: getFetchHeaders() });
   const json = await res.json();
 
   if (json.status !== 200 || json.data?.realLiveStatus !== "ON") {
@@ -108,8 +114,11 @@ async function getStream(rid) {
     
     const dynamicAntiCode = await generateDynamicAntiCode(anticode, uid.toString(), streamName);
     
+    // 拼接最终播放链接
     let streamUrl = `${s.sFlvUrl}/${streamName}.${flvSuffix}?${dynamicAntiCode}`;
-    streamUrl = streamUrl.replace("http://", "https://");
+    
+    // ⚠️ 核心修复：注释掉强转 HTTPS 的逻辑，保留 http 以避免 404 错误
+    // streamUrl = streamUrl.replace("http://", "https://");
     
     const cdnName = cdnMap[cdn] || cdn;
     result[cdnName] = streamUrl;
@@ -148,8 +157,10 @@ app.get('/', async (req, res) => {
     if (type === 'json') {
       return res.json(streamData);
     } else {
-      const priority = ['txcdn', 'alicdn', 'hwcdn', 'hscdn', 'hycdn', 'wscdn'];
+      // ⚠️ 核心修复：将阿里和虎牙官方 CDN 优先级提高，txcdn 往后放
+      const priority = ['alicdn', 'hycdn', 'hwcdn', 'hscdn', 'txcdn', 'wscdn'];
       const targetUrl = pickCDN(streamData, priority);
+      
       // 302 重定向
       return res.redirect(302, targetUrl);
     }
